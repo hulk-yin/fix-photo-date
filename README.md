@@ -1,5 +1,9 @@
 # fix-photo-date
-Check if file and exif dates differs on photos and optionally fix it.
+Check if file and exif dates differ on photos and optionally fix it.
+
+## Install
+
+    npm install
 
 ## Usage
 
