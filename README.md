@@ -1,2 +1,10 @@
-# fix-image-date
-Check if image file date differ with the date recorded in the file exif meta data and optionally fix it.
+# fix-photo-date
+Check if file and exif dates differs on photos and optionally fix it.
+
+## Usage
+
+    npm run [check|fix] [dir]
+
+The program will extract the exif and file dates on all jpeg photos
+in the dir and print a diff summary in the console. If `fix` is used,
+the program will set the file's modification date to the exif date.

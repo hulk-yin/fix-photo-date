@@ -1,0 +1,40 @@
+{
+  "name": "fix-photo-date",
+  "version": "1.0.0",
+  "description": "Check if file and exif dates differs on photos and optionally fix it.",
+  "main": "index.js",
+  "scripts": {
+    "check": "node index.js",
+    "fix": "node index.js --fix",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danieledler/fix-photo-date.git"
+  },
+  "keywords": [
+    "exif",
+    "photo",
+    "date",
+    "fix"
+  ],
+  "author": "Daniel Edler",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "bluebird": "^3.4.7",
+    "chalk": "^1.1.3",
+    "exif": "^0.6.0",
+    "fs-promise": "^1.0.0",
+    "lodash": "^4.17.4",
+    "mime-types": "^2.1.13",
+    "moment": "^2.17.1"
+  },
+  "bugs": {
+    "url": "https://github.com/danieledler/fix-photo-date/issues"
+  },
+  "homepage": "https://github.com/danieledler/fix-photo-date#readme",
+  "devDependencies": {
+    "babel-preset-es2015": "^6.18.0",
+    "babel-register": "^6.18.0"
+  }
+}
