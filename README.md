@@ -7,7 +7,7 @@ Check if file and exif dates differ on photos and optionally fix it.
 
 ## Usage
 
-    npm run [check|fix] [dir]
+    npm run [check|fix|info] [path to photo or directory of photos]
 
 The program will extract the exif and file dates on all jpeg photos
 in the dir and print a diff summary in the console. If `fix` is used,

@@ -5,6 +5,7 @@ import _ from 'lodash';
 import mime from 'mime-types';
 import bluebird from 'bluebird';
 import { ExifImage } from 'exif';
+import prettyjson from 'prettyjson';
 
 /**
  * @return {Promise<Object>} The exif data, structured like
@@ -42,7 +43,7 @@ export function getExifData(filePath) {
             if (error) {
                 return reject(error);
             }
-            resolve(exifData);
+            resolve(_.omit(exifData, 'exif.MakerNote'));
         });
     });
 }
@@ -118,16 +119,55 @@ function checkDiff(dirPath, fix = false) {
     });
 }
 
+function printExif(item) {
+    const { path: filePath, stats } = item;
+    return getExifData(filePath)
+        .then(exif => {
+            console.log('\n');
+            console.log('=========================');
+            console.log(filePath);
+            console.log('=========================');
+            console.log(prettyjson.render(stats));
+            console.log(prettyjson.render(exif));
+            return checkDate(item);
+        })
+        .catch(err => {
+            console.error(err);
+            return false;
+        });
+}
+
+function printInfo(dirPath) {
+    console.log(`Print info on photo(s) in '${dirPath}'...`);
+    fs.walk(dirPath).then(items => {
+        const files = items.filter(item => {
+            const type = mime.lookup(item.path);
+            // return item.stats.isFile();
+            return type === 'image/jpeg';
+        });
+        bluebird.mapSeries(files, file => printExif(file))
+            .then((isOk) => {
+                const numOk = isOk.filter(isOk => isOk).length;
+                console.log(`Done! ${numOk} / ${files.length} is ok.`);
+            });
+    });
+
+}
+
 const fixDiff = _.partialRight(checkDiff, true);
 
 function run() {
     if (process.argv.length < 3 || process.argv.length > 4) {
-        console.log(`Usage: npm run [check|fix] [photo dir]`);
+        console.log(`Usage: npm run [check|fix|info] [photo dir]`);
         return 0;
     }
 
     const dir = process.argv.length > 3 ? process.argv[3] : process.argv[2];
     const fix = process.argv.length > 3 && process.argv[2] === '--fix';
+    if (process.argv[2] === '--info') {
+        printInfo(dir);
+        return;
+    }
     checkDiff(dir, fix);
 }
 
