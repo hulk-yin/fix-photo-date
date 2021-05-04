@@ -25,7 +25,7 @@
     "chalk": "^2.4.2",
     "commander": "^2.20.0",
     "exif": "^0.6.0",
-    "exiftool-vendored": "^8.7.1",
+    "exiftool-vendored": "^14.3.0",
     "globby": "^9.2.0",
     "lodash": "^4.17.11",
     "mime-types": "^2.1.22",
