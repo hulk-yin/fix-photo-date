@@ -37,7 +37,7 @@
   },
   "homepage": "https://github.com/danieledler/fix-photo-date#readme",
   "devDependencies": {
-    "@babel/core": "^7.4.5",
+    "@babel/core": "^7.14.8",
     "@babel/preset-env": "^7.4.5",
     "@babel/register": "^7.4.0"
   }
