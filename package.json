@@ -22,7 +22,7 @@
   "author": "Daniel Edler",
   "license": "Apache-2.0",
   "dependencies": {
-    "chalk": "^2.4.2",
+    "chalk": "^4.1.2",
     "commander": "^2.20.0",
     "exif": "^0.6.0",
     "exiftool-vendored": "^8.7.1",
