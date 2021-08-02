@@ -23,7 +23,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "chalk": "^2.4.2",
-    "commander": "^2.20.0",
+    "commander": "^8.1.0",
     "exif": "^0.6.0",
     "exiftool-vendored": "^8.7.1",
     "globby": "^9.2.0",
