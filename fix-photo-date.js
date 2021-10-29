@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs, { existsSync } from 'fs';
 import globby from 'globby';
 import moment from 'moment';
 import chalk from 'chalk';
@@ -7,8 +7,7 @@ import mime from 'mime-types';
 import { ExifImage } from 'exif';
 import prettyjson from 'prettyjson';
 import { exiftool } from 'exiftool-vendored';
-import program from 'commander';
-import { name, version, description} from './package.json';
+import { basename, dirname, extname, relative, resolve } from 'path';
 
 async function stat(path) {
     return new Promise((resolve, reject) => {
@@ -107,8 +106,8 @@ async function getExifDate(filePath) {
         const tags = await exiftool.read(filePath)
         const date = tags.DateTimeOriginal;
         if (!date) {
-            console.log(`Warning: ${filePath} has no original date time, using creation date.`);
-            return moment(tags.CreateDate.toISOString());
+            // console.log(`Warning: ${filePath} has no original date time, using creation date.`);
+            return moment(tags.CreateDate?.toISOString());
         }
         return moment(date.toISOString());
     } catch (err) {
@@ -117,18 +116,28 @@ async function getExifDate(filePath) {
     }
 }
 
-async function setExifDate(filePath, date) {
+async function setExifDate(filePath, date, _outPath) {
     try {
+        let outPath = _outPath;
+        if (_outPath) {
+            const dirPath = resolve(_outPath, '../');
+            const ext = extname(_outPath);
+            const name = basename(_outPath,ext);
+            let i = 0;
+            while (existsSync(outPath)) {
+                outPath = resolve(dirPath, `${name}-${++i}${ext}`)
+            }
+        }
         const tags = await exiftool.write(filePath, {
             AllDates: date.toISOString(),
-        });
+        }, outPath ? [`-o`, `${outPath}`] : []);
     } catch (err) {
         console.error('Exif tool write error:', err);
         throw err;
     }
 }
 
-async function checkDate(item, { fix = false, referenceDate = undefined, force = false }) {
+async function checkDate(item, { fix = false, referenceDate = undefined, force = false, outfile = undefined }) {
     const { path: filePath, stats } = item;
     // return getJpegExifDateString(filePath)
     //     .then(parseJpegExifDate)
@@ -142,12 +151,12 @@ async function checkDate(item, { fix = false, referenceDate = undefined, force =
             diffToReferenceDate = moment.duration(exifDate.diff(referenceDate));
             datesToCompare.push(['Exif', exifDate]);
         }
-        let unixDates = ['atime', 'mtime', 'ctime', 'birthtime'].map(dateSource => 
+        let unixDates = ['atime', 'mtime', 'ctime', 'birthtime'].map(dateSource =>
             [dateSource, moment(stats[dateSource])]
         );
         datesToCompare.push(...unixDates);
-        console.log(`${chalk.underline.bold(filePath)}`);
-        console.log(`  ${_.padEnd(referenceDate ? 'Exif (external)' : 'Exif:', 15)} ${chalk.magenta(exifDateToUse)}`);
+        console.log(`${chalk.underline.gray(filePath)}`);
+        console.log(`  ${_.padEnd(referenceDate ? 'Exif (external):' : 'Exif:', 15)} ${chalk.magenta(exifDateToUse)}`);
         let isOk = false;
         datesToCompare.forEach(([dateSource, date]) => {
             const diff = moment.duration(date.diff(exifDateToUse));
@@ -157,22 +166,20 @@ async function checkDate(item, { fix = false, referenceDate = undefined, force =
                 isOk = !isDiff;
             }
             const diffHuman = `${diff < 0 ? '-' : ''}${diff.humanize()}`;
-            console.log(`  ${_.padEnd(`${dateSource}:`, 15)} ${chalk.cyan(date)}`, isDiff ? `${chalk.red('✘')} (${chalk.yellow(diffHuman)})` : chalk.green('✔'));
+            // console.log(`  ${_.padEnd(`${dateSource}:`, 15)} ${chalk.cyan(date)}`, isDiff ? `${chalk.red('✘')} (${chalk.yellow(diffHuman)})` : chalk.green('✔'));
         });
-
         if (!fix || isOk && !force) {
             return isOk;
         }
-        
         if (referenceDate) {
             if (diffToReferenceDate.asSeconds() !== 0 || force) {
-                console.log(`  ${chalk.green('Update exif date from external file...')}`);
-                await setExifDate(filePath, referenceDate);
+                console.log(`${chalk.green('Update exif date from external file...')}`);
+                await setExifDate(filePath, referenceDate, outfile);
             }
         }
-        const unixDate = exifDateToUse.unix();
-        console.log(`  ${chalk.green('Fixing unix timestamps...')}`);
-        await utimes(filePath, unixDate, unixDate);
+        // const unixDate = exifDateToUse.unix();
+        // console.log(`  ${chalk.green('Fixing unix timestamps...')}`);
+        // await utimes(filePath, unixDate, unixDate);
         return true;
     }
     catch (err) {
@@ -181,31 +188,70 @@ async function checkDate(item, { fix = false, referenceDate = undefined, force =
     }
 }
 
-async function checkDiff(dirPath, { fix = false, dateFrom = undefined, force = false }) {
+function getDateFromFileName(fileName, format) {
+    const fileNameDate = moment(fileName, format);
+    if (fileName.includes(fileNameDate.format(format))) {
+        return fileNameDate;
+    }
+}
+export async function checkDiff(dirPath, { fix = false, dateFrom = undefined, force = false, dateFromName = false, dateFormat = 'YYYY-MM-DD HHmmss', outPath = undefined, outFormat = false }) {
     console.log(`${fix ? 'Checking and fixing' : 'Checking'} dates on files in '${dirPath}'...`);
     let referenceDate = undefined;
     if (dateFrom) {
         referenceDate = await getExifDate(dateFrom);
         console.log(`- Using date from file ${dateFrom}: ${referenceDate}`);
     }
+
+
     const items = await getFileItems(dirPath);
     const files = items.filter(item => {
         return item.stats.isFile();
     });
     let numOk = 0;
     for (const file of files) {
-        const ok = await checkDate(file, { fix, referenceDate, force });
+        let _referenceDate
+        const name = basename(file.path)
+        let outname = name;
+        if (!referenceDate && dateFromName) {
+            _referenceDate = getDateFromFileName(name, dateFormat)
+
+
+        } else {
+            _referenceDate = referenceDate
+        }
+        if (_referenceDate && outFormat) {
+            outname = _referenceDate.format(outFormat) + extname(name);
+        }
+        let outfile;
+        if (typeof outPath == 'string') {
+            outfile = resolve(dirPath, outPath, outname)
+        } else {
+            outfile = resolve(file.path, '../../out/', outname);
+        }
+
+        const ok = await checkDate(file, { fix, referenceDate: _referenceDate, force, outfile });
+        if(_referenceDate && ok){
+            const orgDir = resolve(dirPath,`../${basename(dirPath)}-origin`)
+            const originPath = resolve(orgDir,relative(dirPath,file.path))
+           await bakOriginFile(file.path,originPath);
+        }
         if (ok) {
             ++numOk;
         }
     }
     console.log(`Done! ${numOk} / ${files.length} is ok.`);
 }
-
+async function bakOriginFile(oldPath,newPath,baseDir){
+    const dirPath = dirname(newPath);
+    if(!existsSync(dirPath)){
+        fs.mkdirSync(dirPath,{recursive:true});
+    }
+    fs.renameSync(oldPath,newPath)
+}
 async function printExif(item) {
     const { path: filePath, stats, type } = item;
     console.log(`Print exif for ${filePath} with mime type ${type}...`);
-    if (true || type !== 'image/jpeg') {
+    if (type !== 'image/jpeg') {
         console.log('run exiftool-vendored on', filePath);
         try {
             const tags = await exiftool.read(filePath);
@@ -227,7 +273,7 @@ async function printExif(item) {
             console.log('=========================');
             console.log(prettyjson.render(stats));
             console.log(prettyjson.render(exif));
-            return checkDate(item);
+            return checkDate(item, {});
         })
         .catch(err => {
             console.error(err);
@@ -235,7 +281,7 @@ async function printExif(item) {
         });
 }
 
-async function printInfo(dirPath) {
+export async function printInfo(dirPath) {
     console.log(`Print info on file(s) in '${dirPath}'...`);
     const items = await getFileItems(dirPath);
     const files = items.filter(item => {
@@ -250,34 +296,6 @@ async function printInfo(dirPath) {
         }
     }
     console.log(`Done! ${numOk} / ${files.length} is ok.`);
+    return;
 }
 
-program
-    .name(name)
-    .description(description)
-    .version(version);
-
-program
-    .command('print-exif <path>')
-    .description('Print exif data for all files matching the path')
-    .action((path) => {
-        console.log(`Print exif info for ${path}...`);
-    });
-    
-program
-    .command('check <path>')
-    .description('Check exif vs file timestamps for all files matching the path')
-    .option('--fix', 'Change file timestamp to the exif date. If using --date-from, update also exif.')
-    .option('--force', 'Force fix')
-    .option('--date-from <file>', 'Use exif date from another file.')
-    .action(async (path, cmd) => {
-        // console.log(`Check ${path}...${cmd.fix ? ' and fix dates' : ''}${cmd.dateFrom ? ` using date from ${cmd.dateFrom}` : ''}`);
-        await checkDiff(path, cmd);
-        process.exit(0);
-    });
-
-program.parse(process.argv);
-
-if (!process.argv.slice(2).length) {
-    program.outputHelp();
-}
