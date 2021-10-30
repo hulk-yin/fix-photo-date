@@ -107,7 +107,7 @@ async function getExifDate(filePath) {
         const date = tags.DateTimeOriginal;
         if (!date) {
             // console.log(`Warning: ${filePath} has no original date time, using creation date.`);
-            return moment((tags.CreateDate||tags.DateTimeCreated||new Date()).toISOString());
+            return moment((tags.CreateDate||new Date()).toISOString());
         }
         return moment(date.toISOString());
     } catch (err) {
@@ -205,7 +205,7 @@ export async function checkDiff(dirPath, { fix = false, dateFrom = undefined, fo
 
     const items = await getFileItems(dirPath);
     const files = items.filter(item => {
-        return item.stats.isFile();
+        return item.stats.isFile() && !/@eaDir/.test(item.path);
     });
     let numOk = 0;
     for (const file of files) {
