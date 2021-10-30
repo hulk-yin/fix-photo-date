@@ -166,7 +166,7 @@ async function checkDate(item, { fix = false, referenceDate = undefined, force =
                 isOk = !isDiff;
             }
             const diffHuman = `${diff < 0 ? '-' : ''}${diff.humanize()}`;
-            // console.log(`  ${_.padEnd(`${dateSource}:`, 15)} ${chalk.cyan(date)}`, isDiff ? `${chalk.red('✘')} (${chalk.yellow(diffHuman)})` : chalk.green('✔'));
+            console.log(`  ${_.padEnd(`${dateSource}:`, 15)} ${chalk.cyan(date)}`, isDiff ? `${chalk.red('✘')} (${chalk.yellow(diffHuman)})` : chalk.green('✔'));
         });
         if (!fix || isOk && !force) {
             return isOk;
