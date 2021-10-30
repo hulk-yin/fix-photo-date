@@ -107,7 +107,7 @@ async function getExifDate(filePath) {
         const date = tags.DateTimeOriginal;
         if (!date) {
             // console.log(`Warning: ${filePath} has no original date time, using creation date.`);
-            return moment(tags.CreateDate.toISOString());
+            return moment((tags.CreateDate||tags.DateTimeCreated||new Date()).toISOString());
         }
         return moment(date.toISOString());
     } catch (err) {
